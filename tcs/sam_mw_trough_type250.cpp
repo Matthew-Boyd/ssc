@@ -2823,6 +2823,7 @@ calc_final_metrics_goto:
                 DP_loop += intc_state.pressure_drop;
             }
         }
+        logTsPs << "m_dot_htf = " << m_dot_htf << "\n";
         if (time == 43200) { logTsPs.close(); }  // DEBUGGING
 
 		if( accept_loc == 1 )
