@@ -54,6 +54,7 @@
 
 #include <cmath>
 #include <algorithm>
+#include <fstream>
 
 using namespace std;
 
@@ -663,7 +664,7 @@ private:
     util::matrix_t<double> D_runner, L_runner, D_hdr, L_hdr, N_rnr_xpans, N_hdr_xpans;
 
 	util::matrix_t<double> 
-		T_htf_in, T_htf_out, T_htf_ave, q_loss, q_abs, c_htf, rho_htf,DP_tube, E_abs_field, 
+		T_htf_in, T_htf_out, T_htf_ave, q_loss, q_abs, c_htf, rho_htf,DP_tube, DP_just_tube, DP_just_intc, E_abs_field, 
 		E_int_loop, E_accum, E_avail, E_abs_max,v_1,q_loss_SCAtot, q_abs_SCAtot, q_SCA, T_htf_in0, T_htf_out0, 
 		T_htf_ave0, E_fp, q_1abs_tot, q_1abs, q_i, IAM, EndGain, EndLoss, RowShadow;
 	double T_sys_c_last, T_sys_h_last; //stored values for header thermal inertia calculations
@@ -1256,6 +1257,8 @@ public:
 		c_htf.resize(nSCA);
 		rho_htf.resize(nSCA);
 		DP_tube.resize(nSCA);
+        DP_just_tube.resize(nSCA);
+        DP_just_intc.resize(nSCA);
 		E_abs_field.resize(nSCA); 
 		E_int_loop.resize(nSCA); 
 		E_accum.resize(nSCA); 
@@ -1614,6 +1617,10 @@ public:
 
 		//reset defocus counter
 		dfcount = 0;
+
+        // DEBUGGING
+        bool logFileCreated = false;
+        std::ofstream logTsPs;
 
 		//record the start time
 		if(start_time < 0)
@@ -2670,6 +2677,8 @@ calc_final_metrics_goto:
 						//if(ErrorFound()) return 1
 		//-------HCE's
 		DP_tube.fill(0.0);
+        DP_just_tube.fill(0.0);
+        DP_just_intc.fill(0.0);
 		for(int j=0; j<nHCEVar; j++)
 		{
 			for(int i=0; i<nSCA; i++)
@@ -2691,12 +2700,32 @@ calc_final_metrics_goto:
 				}
 				DP_tube[i] = DP_tube[i] + PressureDrop(m_dot_htf,T_htf_ave[i],1.0,D_h(HT,j),(Rough(HT,j)*D_h(HT,j)),
                     (L_SCA[CT] + Distance_SCA[CT]), 0.0, 0.0, x1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, x2)*HCE_FieldFrac(HT, j);
+
+                // DEBUGGING
+                DP_just_tube[i] = DP_just_tube[i] + PressureDrop(m_dot_htf, T_htf_ave[i], 1.0, D_h(HT, j), (Rough(HT, j)*D_h(HT, j)),
+                    L_SCA[CT], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)*HCE_FieldFrac(HT, j);
+                //DP_just_intc[i] = DP_just_intc[i] + (DP_tube[i] - DP_just_tube[i]);
 				//if(ErrorFound()) return 1
 			}
 		}
+
+        // DEBUGGING
+        if (!logFileCreated) {
+            logTsPs.open("logTsPs.dat");
+            logTsPs << "i" << "\t" << "T_in_SCA" << "\t" << "T_out_SCA" << "\t" << "P_drop_SCA" << "\t" << "P_drop_intc_after" << "\n";
+            logFileCreated = true;
+        }
+
 		//The pressure drop only across the loop
 		DP_loop = 0.;
-        for (int j = 0; j<nSCA; j++) { DP_loop += DP_tube[j]; }
+        for (int j = 0; j<nSCA; j++) {
+            DP_loop += DP_tube[j];
+            // DEBUGGING
+            if (time == 43200) {
+                logTsPs << j << "\t" << T_htf_in[j] << "\t" << T_htf_out[j] << "\t" << DP_just_tube[j] << "\t" << DP_tube[j] - DP_just_tube[j] << "\n";
+            }
+        }
+        if (time == 43200) { logTsPs.close(); }  // DEBUGGING
 
 		if( accept_loc == 1 )
 			m_dot_htf_tot = m_dot_htf*float(nLoops);
