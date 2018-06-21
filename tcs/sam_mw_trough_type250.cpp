@@ -2768,6 +2768,10 @@ post_convergence_flag: //11 continue
 
 calc_final_metrics_goto:
 
+        // DEBUGGING
+        // Force m_dot_htf to the value in the original code (7.2 instead of the 3.9 here) and see if the pressure drops are calculating right
+        //m_dot_htf = 7.2;
+
 		// ******************************************************************************************************************************
 		// Calculate the pressure drop across the piping system
 		// ******************************************************************************************************************************
@@ -2795,7 +2799,7 @@ calc_final_metrics_goto:
         // DEBUGGING
         if (!logFileCreated) {
             logTsPs.open("logTsPs.dat");
-            logTsPs << "i" << "\t" << "T_in_SCA" << "\t" << "T_out_SCA" << "\t" << "P_drop_SCA" << "\t" << "P_drop_intc_after" << "\n";
+            logTsPs << "i" << "\t" << "T_in_SCA" << "\t" << "T_out_SCA" << "\t" << "P_drop_SCA" << "\t" << "P_drop_intc_after" << "\t" << "HeatLoss_intc_after" << "\n";
             logFileCreated = true;
         }
 
@@ -2805,7 +2809,7 @@ calc_final_metrics_goto:
         
         // DEBUGGING
         if (time == 43200) {
-            logTsPs << -1 << "\t" << "-" << "\t" << "-" << "\t" << "-" << "\t" << intc_state.pressure_drop << "\n";
+            logTsPs << -1 << "\t" << "-" << "\t" << "-" << "\t" << "-" << "\t" << intc_state.pressure_drop << "\t" << intc_state.heat_loss << "\n";
         }
 
 		for(int j=0; j<nSCA; j++)
@@ -2813,7 +2817,7 @@ calc_final_metrics_goto:
             DP_loop += DP_tube[j];
             intc_state = intc_assys[j + 2].State(m_dot_htf, T_htf_out[j], T_db, intc_state.pressure_out - DP_tube[j]);
             if (time == 43200) {  // DEBUGGING
-                logTsPs << j << "\t" << T_htf_in[j] << "\t" << T_htf_out[j] << "\t" << DP_tube[j] << "\t" << intc_state.pressure_drop << "\n";
+                logTsPs << j << "\t" << T_htf_in[j] << "\t" << T_htf_out[j] << "\t" << DP_tube[j] << "\t" << intc_state.pressure_drop << "\t" << intc_state.heat_loss << "\n";
             }
             if (j != nSCA/2 - 1) {   // exclude crossover
                 DP_loop += intc_state.pressure_drop;
