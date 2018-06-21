@@ -1280,29 +1280,29 @@ public:
                 rough_intc.row(i).data(), u_intc.row(i).data(), mc_intc.row(i).data(), Type_intc.row(i).data(), K_intc.ncols()));
         }
 
-        std::ofstream logAssys;
-        logAssys.open("logAssys.txt");
-        logAssys << "K" << "\t" << "D" << "\t" << "L" << "\t" << "Type" << "\n";
-        for (std::vector<intc_assy>::iterator ita = intc_assys.begin(); ita < intc_assys.end(); ++ita) {
-            for (std::vector<interconnect>::size_type i = 0; i != ita->getNintcs(); i++) {
-                logAssys << ita->getK(i) << "-";
-            }
-            logAssys << "\t";
-            for (std::vector<interconnect>::size_type i = 0; i != ita->getNintcs(); i++) {
-                logAssys << ita->getD(i) << "-";
-            }
-            logAssys << "\t";
-            for (std::vector<interconnect>::size_type i = 0; i != ita->getNintcs(); i++) {
-                logAssys << ita->getLength(i) << "-";
-            }
-            logAssys << "\t";
-            for (std::vector<interconnect>::size_type i = 0; i != ita->getNintcs(); i++) {
-                logAssys << (int)ita->getType(i) << "-";
-            }
-            //log.flush();
-            logAssys << "\n";
-        }
-        logAssys.close();
+        //std::ofstream logAssys;
+        //logAssys.open("logAssys.txt");
+        //logAssys << "K" << "\t" << "D" << "\t" << "L" << "\t" << "Type" << "\n";
+        //for (std::vector<intc_assy>::iterator ita = intc_assys.begin(); ita < intc_assys.end(); ++ita) {
+        //    for (std::vector<interconnect>::size_type i = 0; i != ita->getNintcs(); i++) {
+        //        logAssys << ita->getK(i) << "-";
+        //    }
+        //    logAssys << "\t";
+        //    for (std::vector<interconnect>::size_type i = 0; i != ita->getNintcs(); i++) {
+        //        logAssys << ita->getD(i) << "-";
+        //    }
+        //    logAssys << "\t";
+        //    for (std::vector<interconnect>::size_type i = 0; i != ita->getNintcs(); i++) {
+        //        logAssys << ita->getLength(i) << "-";
+        //    }
+        //    logAssys << "\t";
+        //    for (std::vector<interconnect>::size_type i = 0; i != ita->getNintcs(); i++) {
+        //        logAssys << (int)ita->getType(i) << "-";
+        //    }
+        //    //log.flush();
+        //    logAssys << "\n";
+        //}
+        //logAssys.close();
 
 		//The glazingintact array should be converted to bools
 		GlazingIntact.resize(nrow_GlazingIntactIn, ncol_GlazingIntactIn);
@@ -1726,6 +1726,10 @@ public:
 		//reset defocus counter
 		dfcount = 0;
 
+        // DEBUGGING
+        bool logFileCreated = false;
+        std::ofstream logTsPs;
+
 		//record the start time
 		if(start_time < 0)
 		{ 
@@ -2124,6 +2128,7 @@ overtemp_iter_flag: //10 continue     //Return loop for over-temp conditions
     
 			//---------------------
             double P_intc_in = P_field_in;  //approximate
+            double HeatLoss_intc;
 			for(int i=0; i<nSCA; i++)
 			{
 				q_loss.fill(0.);
@@ -2227,6 +2232,7 @@ overtemp_iter_flag: //10 continue     //Return loop for over-temp conditions
 					//Calculate inlet temperature of the next SCA
                     IntcOutputs intc_state = intc_assys[i+2].State(m_dot_htf, T_htf_out[i], T_db, P_intc_in);
                     P_intc_in -= intc_state.pressure_drop;  // pressure drops in HCAs only accounted for later
+                    HeatLoss_intc = intc_state.heat_loss;  // for debugging
 					T_htf_in[i+1] = intc_state.temp_out;
 					//mjw 1.18.2011 Add the internal energy of the crossover piping and interconnects between the current SCA and the next one
 					E_int_loop[i] += intc_state.internal_energy;
@@ -2785,17 +2791,35 @@ calc_final_metrics_goto:
 
 			}
 		}
+
+        // DEBUGGING
+        if (!logFileCreated) {
+            logTsPs.open("logTsPs.dat");
+            logTsPs << "i" << "\t" << "T_in_SCA" << "\t" << "T_out_SCA" << "\t" << "P_drop_SCA" << "\t" << "P_drop_intc_after" << "\n";
+            logFileCreated = true;
+        }
+
 		//The pressure drop only across the loop (excludes IOCOP)
         intc_state = intc_assys[1].State(m_dot_htf, inlet_state.temp_out, T_db, inlet_state.pressure_out);
         DP_loop = intc_state.pressure_drop;  // just before first SCA
+        
+        // DEBUGGING
+        if (time == 43200) {
+            logTsPs << -1 << "\t" << "-" << "\t" << "-" << "\t" << "-" << "\t" << intc_state.pressure_drop << "\n";
+        }
+
 		for(int j=0; j<nSCA; j++)
         {
             DP_loop += DP_tube[j];
             intc_state = intc_assys[j + 2].State(m_dot_htf, T_htf_out[j], T_db, intc_state.pressure_out - DP_tube[j]);
+            if (time == 43200) {  // DEBUGGING
+                logTsPs << j << "\t" << T_htf_in[j] << "\t" << T_htf_out[j] << "\t" << DP_tube[j] << "\t" << intc_state.pressure_drop << "\n";
+            }
             if (j != nSCA/2 - 1) {   // exclude crossover
                 DP_loop += intc_state.pressure_drop;
             }
         }
+        if (time == 43200) { logTsPs.close(); }  // DEBUGGING
 
 		if( accept_loc == 1 )
 			m_dot_htf_tot = m_dot_htf*float(nLoops);
