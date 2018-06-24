@@ -666,7 +666,7 @@ private:
 	util::matrix_t<double> 
 		T_htf_in, T_htf_out, T_htf_ave, q_loss, q_abs, c_htf, rho_htf,DP_tube, DP_just_tube, DP_just_intc, E_abs_field, 
 		E_int_loop, E_accum, E_avail, E_abs_max,v_1,q_loss_SCAtot, q_abs_SCAtot, q_SCA, T_htf_in0, T_htf_out0, heatloss_intc_afterSCA,
-		T_htf_ave0, E_fp, q_1abs_tot, q_1abs, q_i, IAM, EndGain, EndLoss, RowShadow;
+		T_htf_ave0, E_fp, q_1abs_tot, q_1abs, q_i, IAM, EndGain, EndLoss, RowShadow, tempdrop_intc_afterSCA;
 	double T_sys_c_last, T_sys_h_last; //stored values for header thermal inertia calculations
 	double v_hot, v_cold;	//Header HTF volume
 	double defocus_new, defocus_old, ftrack;
@@ -1282,6 +1282,7 @@ public:
 		T_htf_out0.resize(nSCA); 
 		T_htf_ave0.resize(nSCA);
         heatloss_intc_afterSCA.resize(nSCA);
+        tempdrop_intc_afterSCA.resize(nSCA);
 		
 		//Set up annulus gas and absorber property matrices
 		AnnulusGasMat.resize(nHCEt, nHCEVar);
@@ -2133,8 +2134,10 @@ overtemp_iter_flag: //10 continue     //Return loop for over-temp conditions
             
 					//Calculate inlet temperature of the next SCA
                     // TODO - Replace D_3 and L_int with the values from the new interconnect definition
+                    double D_test = D_3(HT, 0);  // DEBUGGING
                     heatloss_intc_afterSCA[i] = Pipe_hl_coef * D_3(HT, 0)*pi*L_int*(T_htf_out[i] - T_db);
 					T_htf_in[i+1] = T_htf_out[i] - heatloss_intc_afterSCA[i]/(m_dot_htf*c_htf[i]);
+                    tempdrop_intc_afterSCA[i] = T_htf_out[i] - T_htf_in[i + 1];
 					//mjw 1.18.2011 Add the internal energy of the crossover piping and interconnects between the current SCA and the next one
 					E_int_loop[i] = E_int_loop[i] + L_int*(pow(D_3(HT,0),2)/4.*pi * rho_htf[i] * c_htf[i] + mc_bal_sca)*(T_htf_out[i] - 298.150);
 				}
@@ -2714,7 +2717,7 @@ calc_final_metrics_goto:
         // DEBUGGING
         if (!logFileCreated) {
             logTsPs.open("logTsPs.dat");
-            logTsPs << "i" << "\t" << "T_in_SCA" << "\t" << "T_out_SCA" << "\t" << "P_drop_SCA" << "\t" << "P_drop_intc_after" << "\t" << "HeatLoss_intc_after" << "\n";
+            logTsPs << "i" << "\t" << "T_in_SCA" << "\t" << "T_out_SCA" << "\t" << "P_drop_SCA" << "\t" << "T_drop_intc_after" << "\t" << "P_drop_intc_after" << "\t" << "HeatLoss_intc_after" << "\n";
             logFileCreated = true;
         }
 
@@ -2724,7 +2727,7 @@ calc_final_metrics_goto:
             DP_loop += DP_tube[j];
             // DEBUGGING
             if (time == 43200) {
-                logTsPs << j << "\t" << T_htf_in[j] << "\t" << T_htf_out[j] << "\t" << DP_just_tube[j] << "\t" << DP_tube[j] - DP_just_tube[j] << "\t" << heatloss_intc_afterSCA[j] << "\n";
+                logTsPs << j << "\t" << T_htf_in[j] << "\t" << T_htf_out[j] << "\t" << DP_just_tube[j] << "\t" << tempdrop_intc_afterSCA[j] << "\t" << DP_tube[j] - DP_just_tube[j] << "\t" << heatloss_intc_afterSCA[j] << "\n";
             }
         }
         logTsPs << "m_dot_htf = " << m_dot_htf << "\n";
