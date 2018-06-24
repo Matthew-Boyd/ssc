@@ -2770,7 +2770,7 @@ calc_final_metrics_goto:
 
         // DEBUGGING
         // Force m_dot_htf to the value in the original code (7.2 instead of the 3.9 here) and see if the pressure drops are calculating right
-        m_dot_htf = 7.2;
+        //m_dot_htf = 7.2;
 
 		// ******************************************************************************************************************************
 		// Calculate the pressure drop across the piping system
