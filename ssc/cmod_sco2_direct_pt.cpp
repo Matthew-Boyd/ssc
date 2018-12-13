@@ -71,7 +71,7 @@
 
 #include "csp_system_costs.h"
 
-static var_info _cm_vtab_tcsmolten_salt[] = {
+static var_info _cm_vtab_sco2_direct_pt[] = {
     /* VARTYPE          DATATYPE         NAME                         LABEL                                                                               UNITS           META              GROUP             REQUIRED_IF                CONSTRAINTS         UI_HINTS*/
     { SSC_INPUT,        SSC_STRING,      "solar_resource_file",       "local weather file path",                                                          "",             "",               "Weather",        "?",                       "LOCAL_FILE",            "" },
     { SSC_INPUT,        SSC_TABLE,       "solar_resource_data",       "solar resouce data in memory",                                                     "",             "",               "Weather",        "?",                       "",                      "" },
@@ -170,7 +170,7 @@ static var_info _cm_vtab_tcsmolten_salt[] = {
     { SSC_INPUT,        SSC_NUMBER,      "d_tube_out",                "The outer diameter of an individual receiver tube",                                "mm",           "",               "receiver",       "*",                       "",                      "" },
     { SSC_INPUT,        SSC_NUMBER,      "th_tube",                   "The wall thickness of a single receiver tube",                                     "mm",           "",               "receiver",       "*",                       "",                      "" },
     { SSC_INPUT,        SSC_NUMBER,      "mat_tube",                  "2: Stainless AISI316",                                                             "",             "",               "receiver",       "*",                       "",                      "" },
-    { SSC_INPUT,        SSC_NUMBER,      "rec_htf",                   "17: Salt (60% NaNO3, 40% KNO3) 10: Salt (46.5% LiF 11.5% NaF 42% KF) 50: Lookup tables", "",       "",               "receiver",       "*",                       "",                      "" },
+    { SSC_INPUT,        SSC_NUMBER,      "rec_htf",                   "17: Salt (60% NaNO3, 40% KNO3) 10: Salt (46.5% LiF 11.5% NaF 42% KF) 50: Lookup tables 102: sco2", "",       "",     "receiver",       "*",                       "",                      "" },
     { SSC_INPUT,        SSC_MATRIX,      "field_fl_props",            "User defined field fluid property data",                                           "-",            "",               "receiver",       "*",                       "",                      "" },
     { SSC_INPUT,        SSC_NUMBER,      "Flow_type",                 "Flow pattern: see figure on SAM Receiver page",                                    "",             "",               "receiver",       "*",                       "",                      "" },
     { SSC_INPUT,        SSC_NUMBER,      "crossover_shift",           "No. panels shift in receiver crossover position",                                  "",             "",               "receiver",       "?=0",                     "",                      "" },
@@ -186,20 +186,21 @@ static var_info _cm_vtab_tcsmolten_salt[] = {
     { SSC_INPUT,        SSC_NUMBER,      "piping_length_const",       "Piping constant length",                                                           "m",            "",               "tower",          "*",                       "",                      "" },
                                                                                                                                                                                             
                                                                                                                                                                                             
-    // TES parameters - general                                                                                                                                                             
+    // TES parameters - general
+    { SSC_INPUT,        SSC_NUMBER,      "tes_type",                  "1 = 2-tank, 2 = particle loop",                                                    "-",            "",               "TES",            "*",                       "",                      "" },
     { SSC_INPUT,        SSC_NUMBER,      "csp.pt.tes.init_hot_htf_percent", "Initial fraction of avail. vol that is hot",                                 "%",            "",               "TES",            "*",                       "",                      "" },
     { SSC_INPUT,        SSC_NUMBER,      "h_tank",                    "Total height of tank (height of HTF when tank is full",                            "m",            "",               "TES",            "*",                       "",                      "" },
     { SSC_INPUT,        SSC_NUMBER,      "cold_tank_max_heat",        "Rated heater capacity for cold tank heating",                                      "MW",           "",               "TES",            "*",                       "",                      "" },            
     { SSC_INPUT,        SSC_NUMBER,      "u_tank",                    "Loss coefficient from the tank",                                                   "W/m2-K",       "",               "TES",            "*",                       "",                      "" },
     { SSC_INPUT,        SSC_NUMBER,      "tank_pairs",                "Number of equivalent tank pairs",                                                  "-",            "",               "TES",            "*",                       "INTEGER",               "" },
     { SSC_INPUT,        SSC_NUMBER,      "cold_tank_Thtr",            "Minimum allowable cold tank HTF temp",                                             "C",            "",               "TES",            "*",                       "",                      "" },
-    // TES parameters - 2 tank                                                                                                                                                          
+    // TES parameters - 2 tank
     { SSC_INPUT,        SSC_NUMBER,      "h_tank_min",                "Minimum allowable HTF height in storage tank",                                     "m",            "",               "TES",            "*",                       "",                      "" },   
     { SSC_INPUT,        SSC_NUMBER,      "hot_tank_Thtr",             "Minimum allowable hot tank HTF temp",                                              "C",            "",               "TES",            "*",                       "",                      "" },
     { SSC_INPUT,        SSC_NUMBER,      "hot_tank_max_heat",         "Rated heater capacity for hot tank heating",                                       "MW",           "",               "TES",            "*",                       "",                      "" },
                                                                                                           
                                                                                                        
-    // Power Cycle Inputs                                             
+    // Power Cycle Inputs
     { SSC_INPUT,        SSC_NUMBER,      "pc_config",                 "0: Steam Rankine (224), 1: user defined, 2: sCO2 Recompression (424)",             "-",            "",               "powerblock",     "?=0",                     "INTEGER",               "" },    
     { SSC_INPUT,        SSC_NUMBER,      "pb_pump_coef",              "Pumping power to move 1kg of HTF through PB loop",                                 "kW/kg",        "",               "powerblock",     "*",                       "",                      "" },    
     { SSC_INPUT,        SSC_NUMBER,      "startup_time",              "Time needed for power block startup",                                              "hr",           "",               "powerblock",     "*",                       "",                      "" },
@@ -546,7 +547,7 @@ public:
 
     cm_sco2_direct_pt()
     {
-        add_var_info(_cm_vtab_tcsmolten_salt);
+        add_var_info(_cm_vtab_sco2_direct_pt);
         add_var_info(vtab_adjustment_factors);
         add_var_info(vtab_sf_adjustment_factors);
     } 
@@ -575,13 +576,13 @@ public:
         weather_reader.m_azimuth = 0.0;
         // Initialize to get weather file info
         weather_reader.init();
-        if (weather_reader.has_error()) throw exec_error("tcsmolten_salt", weather_reader.get_error());
+        if (weather_reader.has_error()) throw exec_error("sco2_direct_pt", weather_reader.get_error());
 
         // Get info from the weather reader initialization
         double site_elevation = weather_reader.ms_solved_params.m_elev;     //[m]
 
 
-        int tes_type = 1;
+        int tes_type = as_integer("tes_type");
 
         int rec_type = var_receiver::REC_TYPE::EXTERNAL_CYLINDRICAL;
         switch (rec_type)
@@ -596,7 +597,7 @@ public:
                 break;
         }
 
-        assign("q_design", as_number("P_ref") / as_number("design_eff") * as_number("solarm"));
+        assign("q_design", as_number("P_ref") / as_number("design_eff") * as_number("solarm"));  // ref. abs. heat at design conditions
 
         // Set up "cmod_solarpilot.cpp" conversions as necessary
         assign("helio_optical_error", (ssc_number_t)(as_number("helio_optical_error_mrad")*1.E-3));
@@ -938,7 +939,7 @@ public:
                 double P_high_limit = as_double("P_high_limit");               //[MPa]
                 if (!std::isfinite(_sco2_P_high_limit) || _sco2_P_high_limit != P_high_limit)
                 {
-                    throw exec_error("tcsmolten_salt", util::format("The upper pressure limit used to generate"
+                    throw exec_error("sco2_direct_pt", util::format("The upper pressure limit used to generate"
                         " the preprocessed sCO2 cycle data, %lg [MPa], is not equal to the input upper pressure limit %lg [MPa]",
                         _sco2_P_high_limit, P_high_limit));
                 }
@@ -947,7 +948,7 @@ public:
                 double P_ref_input = as_double("P_ref");
                 if (!std::isfinite(_sco2_P_ref) || _sco2_P_ref != P_ref_input)
                 {
-                    throw exec_error("tcsmolten_salt", util::format("The cycle gross power used to generate"
+                    throw exec_error("sco2_direct_pt", util::format("The cycle gross power used to generate"
                         " the preprocessed sCO2 cycle data, %lg [MWe], is not equal to the input cycle gross power %lg [MWe]",
                         _sco2_P_ref, P_ref_input));
                 }
@@ -956,7 +957,7 @@ public:
                 double T_amb_des_input = as_double("sco2_T_amb_des");
                 if (!std::isfinite(_sco2_T_amb_des) || _sco2_T_amb_des != T_amb_des_input)
                 {
-                    throw exec_error("tcsmolten_salt", util::format("The design ambient temperature used to generate"
+                    throw exec_error("sco2_direct_pt", util::format("The design ambient temperature used to generate"
                         " the preprocessed sCO2 cycle data, %lg [C], is not equal to the input design ambient temperature %lg [C]",
                         _sco2_T_amb_des, T_amb_des_input));
                 }
@@ -965,7 +966,7 @@ public:
                 double T_approach_input = as_double("sco2_T_approach");
                 if (!std::isfinite(_sco2_T_approach) || _sco2_T_approach != T_approach_input)
                 {
-                    throw exec_error("tcsmolten_salt", util::format("The compressor approach temperature used to generate"
+                    throw exec_error("sco2_direct_pt", util::format("The compressor approach temperature used to generate"
                         " the preprocessed sCO2 cycle data, %lg [C], is not equal to the input compressor approach temperature %lg [C]",
                         _sco2_T_approach, T_approach_input));
                 }
@@ -974,7 +975,7 @@ public:
                 double T_htf_hot_des_input = as_double("T_htf_hot_des");
                 if (!std::isfinite(_sco2_T_htf_hot_des) || _sco2_T_htf_hot_des != T_htf_hot_des_input)
                 {
-                    throw exec_error("tcsmolten_salt", util::format("The HTF hot temperature uesd to generate"
+                    throw exec_error("sco2_direct_pt", util::format("The HTF hot temperature uesd to generate"
                         " the preprocessed sCO2 cycle data, %lg [C], is not equal to the input HTF hot temperature",
                         _sco2_T_htf_hot_des, T_htf_hot_des_input));
                 }
@@ -983,7 +984,7 @@ public:
                 double deltaT_PHX_input = as_double("deltaT_PHX");
                 if (!std::isfinite(_sco2_deltaT_PHX) || _sco2_deltaT_PHX != deltaT_PHX_input)
                 {
-                    throw exec_error("tcsmolten_salt", util::format("The PHX approach temperature used to generate"
+                    throw exec_error("sco2_direct_pt", util::format("The PHX approach temperature used to generate"
                         " the preprocessed sCO2 cycle data, %lg [C], is not equal to the input PHX approach temperature",
                         _sco2_deltaT_PHX, deltaT_PHX_input));
                 }
@@ -992,7 +993,7 @@ public:
                 double design_eff_input = as_double("design_eff");
                 if (!std::isfinite(_sco2_design_eff) || _sco2_design_eff != design_eff_input)
                 {
-                    throw exec_error("tcsmolten_salt", util::format("The thermal efficiency used to generate"
+                    throw exec_error("sco2_direct_pt", util::format("The thermal efficiency used to generate"
                         " the preprocessed sCO2 cycle data, %lg, is not equal to the input thermal efficiency",
                         _sco2_design_eff, design_eff_input));
                 }
@@ -1001,7 +1002,7 @@ public:
                 double eta_c_input = as_double("eta_c");
                 if (!std::isfinite(_sco2_eta_c) || _sco2_eta_c != eta_c_input)
                 {
-                    throw exec_error("tcsmolten_salt", util::format("The compressor isentropic efficiency used to generate"
+                    throw exec_error("sco2_direct_pt", util::format("The compressor isentropic efficiency used to generate"
                         " the preprocessed sCO2 cycle data, %lg, is not equal to the input compressor isentropic efficiency",
                         _sco2_eta_c, eta_c_input));
                 }
@@ -1010,7 +1011,7 @@ public:
                 double eta_t_input = as_double("eta_t");
                 if (!std::isfinite(_sco2_eta_t) || _sco2_eta_t != eta_t_input)
                 {
-                    throw exec_error("tcsmolten_salt", util::format("The turbine isentropic efficiency used to generate"
+                    throw exec_error("sco2_direct_pt", util::format("The turbine isentropic efficiency used to generate"
                         " the preprocessed sCO2 cycle data, %lg, is not equal to the input turbine isentropic efficiency",
                         _sco2_eta_t, eta_t_input));
                 }
@@ -1019,7 +1020,7 @@ public:
                 double recup_eff_max = as_double("recup_eff_max");
                 if (!std::isfinite(_sco2_recup_eff_max) || _sco2_recup_eff_max != recup_eff_max)
                 {
-                    throw exec_error("tcsmolten_salt", util::format("The max recuperator effectiveness used to generate"
+                    throw exec_error("sco2_direct_pt", util::format("The max recuperator effectiveness used to generate"
                         " the preprocessed sCO2 cycle data, %lg, is not equal to the input max recuperator effectiveness",
                         _sco2_recup_eff_max, recup_eff_max));
                 }
@@ -1407,8 +1408,8 @@ public:
         sf_adjustment_factors sf_haf(this);
         int n_steps_full = (int)weather_reader.m_weather_data_provider->nrecords(); //steps_per_hour * 8760;
         if (!sf_haf.setup(n_steps_full))
-            throw exec_error("tcsmolten_salt", "failed to setup sf adjustment factors: " + sf_haf.error());
-        //allocate array to pass to tcs
+            throw exec_error("sco2_direct_pt", "failed to setup sf adjustment factors: " + sf_haf.error());
+        //allocate array
         heliostatfield.ms_params.m_sf_adjust.resize( sf_haf.size() );
         for( int i=0; i<sf_haf.size(); i++)     
             heliostatfield.ms_params.m_sf_adjust.at(i) = sf_haf(i);
@@ -1425,7 +1426,7 @@ public:
         //// *********************************************************
         //// *********************************************************
         //// *********************************************************
-        ////      Now set Type 222 parameters
+        ////      Now set Type 222 parameters (receiver)
         //// *********************************************************
         //// *********************************************************
         //// *********************************************************
@@ -1484,7 +1485,7 @@ public:
         receiver.m_night_recirc = 0;                    // 8.15.15 twn: this is hardcoded for now - need to check that it is functioning correctly and reporting correct parasitics
         receiver.m_hel_stow_deploy = as_double("hel_stow_deploy");
 
-        // Set parameters that were set with TCS defaults
+        // Set parameters
         receiver.m_is_iscc = false;
 
         // Could add optional ISCC stuff...
@@ -1580,7 +1581,7 @@ public:
                 size_t n_wlim_series = 0;
                 ssc_number_t* wlim_series = as_array("wlim_series", &n_wlim_series);
                 if (n_wlim_series != n_steps_full)
-                    throw exec_error("tcsmolten_salt", "Invalid net electricity generation limit series dimension. Matrix must have "+util::to_string(n_steps_full)+" rows.");
+                    throw exec_error("sco2_direct_pt", "Invalid net electricity generation limit series dimension. Matrix must have "+util::to_string(n_steps_full)+" rows.");
                 for (int i = 0; i < n_steps_full; i++)
                     tou.mc_dispatch_params.m_w_lim_full.at(i) = (double)wlim_series[i];
             }
@@ -1738,7 +1739,7 @@ public:
                 log(out_msg, out_type);
             }
 
-            throw exec_error("tcsmolten_salt", csp_exception.m_error_message);
+            throw exec_error("sco2_direct_pt", csp_exception.m_error_message);
         }
 
         // If no exception, then report messages
@@ -1755,7 +1756,7 @@ public:
             ssc_number_t *dispatch_series = as_array("dispatch_series", &n_dispatch_series);
 
        //     if( n_dispatch_series != n_steps_fixed)
-                //throw exec_error("tcsmolten_salt", "Invalid dispatch pricing series dimension. Array length must match number of simulation time steps ("+my_to_string(n_steps_fixed)+").");
+                //throw exec_error("sco2_direct_pt", "Invalid dispatch pricing series dimension. Array length must match number of simulation time steps ("+my_to_string(n_steps_fixed)+").");
                 
             //resize the m_hr_tou array
             if( tou_params->mc_pricing.m_hr_tou != 0 )
@@ -1785,7 +1786,7 @@ public:
                 log(out_msg);
             }
 
-            throw exec_error("tcsmolten_salt", csp_exception.m_error_message);
+            throw exec_error("sco2_direct_pt", csp_exception.m_error_message);
         }
 
         // If no exception, then report messages
@@ -2005,7 +2006,7 @@ public:
         // 'adjustment_factors' class stores factors in hourly array, so need to index as such
         adjustment_factors haf(this, "adjust");
         if( !haf.setup() )
-            throw exec_error("tcsmolten_salt", "failed to setup adjustment factors: " + haf.error());
+            throw exec_error("sco2_direct_pt", "failed to setup adjustment factors: " + haf.error());
 
 
         ssc_number_t *p_gen = allocate("gen", count);
