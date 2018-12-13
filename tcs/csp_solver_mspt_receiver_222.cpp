@@ -443,7 +443,7 @@ void C_mspt_receiver_222::call(const C_csp_weatherreader::S_outputs &weather,
 			for( int j = 0; j<n_flux_x; j++ ){
 				m_flux_in.at(j) = 0.;
 				for( int i = 0; i<n_flux_y; i++ ){
-					m_flux_in.at(j) += (*flux_map_input)(i,j)
+					m_flux_in.at(j) += (*flux_map_input)(i,j)  // sum up irradiance on column [W], convert to [kW], and divide by area of column
 						* I_bn*field_eff_adj*m_A_sf / 1000. / (CSP::pi*m_h_rec*m_d_rec / (double)n_flux_x);	//[kW/m^2];
 				}
 			}
