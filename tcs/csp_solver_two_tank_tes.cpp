@@ -418,7 +418,7 @@ void C_storage_tank::energy_balance(double timestep /*s*/, double m_dot_in, doub
 		m_T_calc = c_coef / b_coef + (m_T_prev - c_coef / b_coef)*exp(-b_coef*timestep);
 		T_ave = c_coef/b_coef - (m_T_prev - c_coef/b_coef)/(b_coef*timestep)*(exp(-b_coef*timestep)-1.0);
 		if (timestep < 1.e-6)
-			T_ave = c_coef / b_coef + (m_T_prev - c_coef / b_coef)*exp(-b_coef * timestep);  // Limiting expression for small time step	
+			T_ave = c_coef / b_coef + (m_T_prev - c_coef / b_coef)*exp(-b_coef*timestep);  // Limiting expression for small time step	
 		q_dot_loss = m_UA*(T_ave - T_amb)/1.E6;
 
 		if( m_T_calc < m_T_htr )
@@ -442,7 +442,7 @@ void C_storage_tank::energy_balance(double timestep /*s*/, double m_dot_in, doub
 		m_T_calc = c_coef / b_coef + (m_T_prev - c_coef / b_coef)*exp(-b_coef*timestep);
 		T_ave = c_coef / b_coef - (m_T_prev - c_coef / b_coef) / (b_coef*timestep)*(exp(-b_coef*timestep) - 1.0);
 		if (timestep < 1.e-6)
-			T_ave = c_coef / b_coef + (m_T_prev - c_coef / b_coef)*exp(-b_coef * timestep);  // Limiting expression for small time step	
+			T_ave = c_coef / b_coef + (m_T_prev - c_coef / b_coef)*exp(-b_coef*timestep);  // Limiting expression for small time step	
 		q_dot_loss = m_UA*(T_ave - T_amb)/1.E6;		//[MW]
 	}
 
@@ -692,7 +692,6 @@ void C_csp_two_tank_tes::init(const C_csp_tes::S_csp_tes_init_inputs init_inputs
 	//double V_inactive = m_vol_tank - m_V_tank_active;
 	//double V_hot_ini = ms_params.m_f_V_hot_ini*0.01*m_V_tank_active + V_inactive;			//[m^3]
 	//double V_cold_ini = (1.0 - ms_params.m_f_V_hot_ini*0.01)*m_V_tank_active + V_inactive;	//[m^3]
-
 
 	double T_hot_ini = ms_params.m_T_tank_hot_ini;		//[K]
 	double T_cold_ini = ms_params.m_T_tank_cold_ini;	//[K]
@@ -992,20 +991,6 @@ bool C_csp_two_tank_tes::discharge(double timestep /*s*/, double T_amb /*K*/, do
 	// If no heat exchanger, no iteration is required between the heat exchanger and storage tank models
 	if(!ms_params.m_is_hx)
 	{
-		if(m_dot_htf_in > (m_m_dot_tes_dc_max/timestep) * 1.000001)
-		{
-			outputs.m_q_heater = std::numeric_limits<double>::quiet_NaN();
-			outputs.m_W_dot_rhtf_pump = std::numeric_limits<double>::quiet_NaN();
-			outputs.m_q_dot_loss = std::numeric_limits<double>::quiet_NaN();
-			outputs.m_q_dot_dc_to_htf = std::numeric_limits<double>::quiet_NaN();
-			outputs.m_q_dot_ch_from_htf = std::numeric_limits<double>::quiet_NaN();
-			outputs.m_T_hot_ave = std::numeric_limits<double>::quiet_NaN();
-			outputs.m_T_cold_ave = std::numeric_limits<double>::quiet_NaN();
-			outputs.m_T_hot_final = std::numeric_limits<double>::quiet_NaN();
-			outputs.m_T_cold_final = std::numeric_limits<double>::quiet_NaN();
-
-			return false;
-		}
         m_dot_field = m_dot_tank = m_dot_htf_in;
         T_field_cold_in = T_cold_tank_in = T_htf_cold_in;
 
@@ -1178,17 +1163,6 @@ bool C_csp_two_tank_tes::charge(double timestep /*s*/, double T_amb /*K*/, doubl
 	// If no heat exchanger, no iteration is required between the heat exchanger and storage tank models
 	if( !ms_params.m_is_hx )
 	{
-		if (m_dot_htf_in > (m_m_dot_tes_ch_max / timestep)* 1.000001)
-		{
-			outputs.m_q_dot_loss = std::numeric_limits<double>::quiet_NaN();
-			outputs.m_q_heater = std::numeric_limits<double>::quiet_NaN();
-			outputs.m_T_hot_ave = std::numeric_limits<double>::quiet_NaN();
-			outputs.m_T_cold_ave = std::numeric_limits<double>::quiet_NaN();
-			outputs.m_T_hot_final = std::numeric_limits<double>::quiet_NaN();
-			outputs.m_T_cold_final = std::numeric_limits<double>::quiet_NaN();
-
-			return false;
-		}
         m_dot_field = m_dot_tank = m_dot_htf_in;
         T_field_hot_in = T_hot_tank_in = T_htf_hot_in;
 
@@ -1438,6 +1412,7 @@ int C_csp_two_tank_tes::pressure_drops(double m_dot_sf, double m_dot_pb,
     double P, T, rho, v_dot, vel;                 // htf properties
     double Area;                                  // cross-sectional pipe area
     double v_dot_sf, v_dot_pb;                    // solar field and power block vol. flow rates
+    double k;                                     // effective minor loss coefficient
     double Re, ff;
     double v_dot_ref;
     double DP_SGS;
@@ -1483,6 +1458,8 @@ double C_csp_two_tank_tes::pumping_power(double m_dot_sf, double m_dot_pb, doubl
     double T_sf_in, double T_sf_out, double T_pb_in, double T_pb_out, bool recirculating)
 {
     double htf_pump_power = 0.;
+    double rho_sf, rho_pb;
+    double DP_col, DP_gen;
     double tes_pump_coef = this->ms_params.m_tes_pump_coef;
     double pb_pump_coef = this->ms_params.m_htf_pump_coef;
     double eta_pump = this->ms_params.eta_pump;
