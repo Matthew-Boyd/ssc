@@ -195,12 +195,12 @@ public:
         double albedo /*-*/);
     const static double IncidentIrradiance(const TimeAndPosition& time_and_position,
         const Weather& weather,
-        double albedo  /*-*/);   // [W/m2]
-    const double RatedPowerGain();      // [W]
+        double albedo  /*-*/);          // [W/m2]
+    const double RatedHeatGain();       // [kWt]
     const double RatedMassFlow();       // [kg/s]
     const double MaxAllowedTemp();      // [C]
     const double MaxMassFlow();         // [kg/s]
-    const double EstimatePowerGain(double POA /*W/m2*/, double T_in /*C*/, double T_amb /*C*/);   // [W]
+    const double EstimateHeatGain(double POA /*W/m2*/, double T_in /*C*/, double T_amb /*C*/);   // [kWt]
     const HeatAndTempInOut HeatGainAndLoss(const TimeAndPosition &time_and_position, const ExternalConditions &external_conditions);  // [W]
     const HeatAndTempInOut HeatFlowsAndOutletTemp(const TimeAndPosition &time_and_position, const ExternalConditions &external_conditions);            // [C]
     const double area_coll();           // [m2]
@@ -213,14 +213,14 @@ private:
     double area_coll_;                  // [m2] collector area
     double m_dot_test_;                 // [kg/s] mass flow through collector during test
     double heat_capacity_rate_test_;    // [kW/K] m_dot * c_p during ratings test
-    const static double kMDotRated_  ; // [kg/s] based on published Heliodyne specs for Gobi 410
+    const static double kMDotRated_  ;  // [kg/s] based on published Heliodyne specs for Gobi 410
     const double AbsorbedIrradianceOverTauAlphaN(const CollectorOrientation &collector_orientation,
         const PoaIrradianceComponents &poa_irradiance_components);      // [W/m2]
-    const double AbsorbedRadiantPower(double transmitted_irradiance /*W/m2*/,
+    const double AbsorbedRadiantHeat(double transmitted_irradiance /*W/m2*/,
         const FluidFlow &inlet_fluid_flow,
-        double T_amb /*C*/);    // [W]
-    const double ThermalPowerLoss(const FluidFlow &inlet_fluid_flow,
-        double T_amb /*C*/);    // [W]
+        double T_amb /*C*/);    // [kWt]
+    const double ThermalHeatLoss(const FluidFlow &inlet_fluid_flow,
+        double T_amb /*C*/);    // [kWt]
 };
 
 
@@ -231,7 +231,7 @@ public:
     Pipe();
     Pipe(double pipe_diam /*m*/, double pipe_k /*W/m2-K*/, double pipe_insul /*m*/, double pipe_length /*m*/);
     const double pipe_od();             // [m]
-    const double ThermalPowerLoss(double T_in /*C*/, double T_amb /*C*/);    // [W]
+    const double ThermalHeatLoss(double T_in /*C*/, double T_amb /*C*/);    // [kWt]
     const double T_out(double T_in /*C*/, double T_amb /*C*/, double heat_capacity_rate /*kW/K*/);  // [C]
 private:
     double pipe_diam_;                  // [m]
@@ -284,13 +284,13 @@ public:
     void resize_num_in_parallel(double T_in_des_external /*C*/, double dT_design_external /*K*/, double mdot_design_external /*kg/s*/, HTFProperties& fluid_external);
     ArrayDimensions array_size() const;
     const double IncidentIrradiance(const tm& timestamp, const ExternalConditions& external_conditions);   // [W/m2] POA
-    const double RatedPowerGain();      // [W]
+    const double RatedHeatGain();       // [kWt]
     const double RatedMassFlow();       // [kg/s]
     const double MaxAllowedTemp();      // [C]
     const double MaxMassFlow();         // [kg/s]
-    const double EstimatePowerGain(double POA /*W/m2*/, double T_in /*C*/, double T_amb /*C*/);            // [W]
-    const double HeatGainAndLoss(const tm &timestamp, const ExternalConditions &external_conditions);      // [W]
-    const double HeatFlowsAndOutletTemp(const tm &timestamp, const ExternalConditions &external_conditions);                // [C]
+    const double EstimateHeatGain(double POA /*W/m2*/, double T_in /*C*/, double T_amb /*C*/);                              // [kWt]
+    const double HeatGainAndLoss(const tm &timestamp, const ExternalConditions &external_conditions);                       // [kWt]
+    const HeatAndTempInOut HeatFlowsAndOutletTemp(const tm &timestamp, const ExternalConditions &external_conditions);      // [C]
     void SetFluid(int fluid_id);
     HTFProperties* GetFluid();
 private:

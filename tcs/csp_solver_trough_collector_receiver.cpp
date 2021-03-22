@@ -686,7 +686,7 @@ bool C_csp_trough_collector_receiver::init_fieldgeom()
 
 		HxDesignProps hx_design_props = HxDesignProps();
 		hx_design_props.dT_approach = T_approach_hx_;
-		hx_design_props.duty = flat_plate_array_.RatedPowerGain() * 1.e-3;	// [kW]
+		hx_design_props.duty = flat_plate_array_.RatedHeatGain();	// [kWt]
 		hx_design_props.external_fluid_id = m_Fluid;
 		hx_design_props.subsystem_fluid_id = kFluidFp;
 		hx_design_props.T_in_hot = m_T_PTC_in_des - 273.15 + T_approach_hx_;
