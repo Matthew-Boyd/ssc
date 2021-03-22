@@ -115,7 +115,8 @@ TEST_F(FlatPlateCollectorTest, TestFlatPlateCollectorNominalOperation)
 
     HeatAndTempInOut heat_and_temp_in_out = flat_plate_collector_->HeatGainAndLoss(time_and_position, external_conditions);  // [W]
     double useful_power_gain = heat_and_temp_in_out.Q_gain - heat_and_temp_in_out.Q_loss;
-    double T_out = flat_plate_collector_->HeatFlowsAndOutletTemp(time_and_position, external_conditions);                    // [C]
+    heat_and_temp_in_out = flat_plate_collector_->HeatFlowsAndOutletTemp(time_and_position, external_conditions);                    // [C]
+    double T_out = heat_and_temp_in_out.T_out;
 
     EXPECT_NEAR(useful_power_gain, 1.659e3, 1.659e3 * m_error_tolerance_hi);
     EXPECT_NEAR(T_out, 50.26, 50.26 * m_error_tolerance_hi);

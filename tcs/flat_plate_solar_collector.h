@@ -202,7 +202,7 @@ public:
     const double MaxMassFlow();         // [kg/s]
     const double EstimatePowerGain(double POA /*W/m2*/, double T_in /*C*/, double T_amb /*C*/);   // [W]
     const HeatAndTempInOut HeatGainAndLoss(const TimeAndPosition &time_and_position, const ExternalConditions &external_conditions);  // [W]
-    const double HeatFlowsAndOutletTemp(const TimeAndPosition &time_and_position, const ExternalConditions &external_conditions);            // [C]
+    const HeatAndTempInOut HeatFlowsAndOutletTemp(const TimeAndPosition &time_and_position, const ExternalConditions &external_conditions);            // [C]
     const double area_coll();           // [m2]
     void area_coll(double collector_area /*m2*/);
     const CollectorTestSpecifications TestSpecifications();
