@@ -142,6 +142,21 @@ struct FluidFlows
     }
 };
 
+struct HeatAndTempInOut
+{
+    double Q_gain;                  // [kWt]
+    double Q_loss;                  // [kWt]
+    double T_in;                    // [C]
+    double T_out;                   // [C]
+
+    HeatAndTempInOut() {
+        Q_gain = std::numeric_limits<double>::quiet_NaN();
+        Q_loss = std::numeric_limits<double>::quiet_NaN();
+        T_in = std::numeric_limits<double>::quiet_NaN();
+        T_out = std::numeric_limits<double>::quiet_NaN();
+    }
+};
+
 struct ExternalConditions
 {
     Weather weather;
@@ -186,8 +201,8 @@ public:
     const double MaxAllowedTemp();      // [C]
     const double MaxMassFlow();         // [kg/s]
     const double EstimatePowerGain(double POA /*W/m2*/, double T_in /*C*/, double T_amb /*C*/);   // [W]
-    const double UsefulPowerGain(const TimeAndPosition &time_and_position, const ExternalConditions &external_conditions);  // [W]
-    const double T_out(const TimeAndPosition &time_and_position, const ExternalConditions &external_conditions);            // [C]
+    const HeatAndTempInOut HeatGainAndLoss(const TimeAndPosition &time_and_position, const ExternalConditions &external_conditions);  // [W]
+    const double HeatFlowsAndOutletTemp(const TimeAndPosition &time_and_position, const ExternalConditions &external_conditions);            // [C]
     const double area_coll();           // [m2]
     void area_coll(double collector_area /*m2*/);
     const CollectorTestSpecifications TestSpecifications();
@@ -274,8 +289,8 @@ public:
     const double MaxAllowedTemp();      // [C]
     const double MaxMassFlow();         // [kg/s]
     const double EstimatePowerGain(double POA /*W/m2*/, double T_in /*C*/, double T_amb /*C*/);            // [W]
-    const double UsefulPowerGain(const tm &timestamp, const ExternalConditions &external_conditions);      // [W]
-    const double T_out(const tm &timestamp, const ExternalConditions &external_conditions);                // [C]
+    const double HeatGainAndLoss(const tm &timestamp, const ExternalConditions &external_conditions);      // [W]
+    const double HeatFlowsAndOutletTemp(const tm &timestamp, const ExternalConditions &external_conditions);                // [C]
     void SetFluid(int fluid_id);
     HTFProperties* GetFluid();
 private:

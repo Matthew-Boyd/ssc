@@ -79,7 +79,7 @@ const double FlatPlateCollector::EstimatePowerGain(double POA /*W/m2*/, double T
     return area_coll_ * (FRta_ * POA - FRUL_ * (T_in - T_amb));
 }
 
-const double FlatPlateCollector::UsefulPowerGain(const TimeAndPosition &time_and_position, const ExternalConditions &external_conditions)  // [W]
+const HeatAndTempInOut FlatPlateCollector::HeatGainAndLoss(const TimeAndPosition &time_and_position, const ExternalConditions &external_conditions)  // [W]
 {
     Weather weather(external_conditions.weather);
     double ambient_temp(external_conditions.weather.ambient_temp);
@@ -92,16 +92,22 @@ const double FlatPlateCollector::UsefulPowerGain(const TimeAndPosition &time_and
     double thermal_power_loss = ThermalPowerLoss(inlet_fluid_flow, ambient_temp);
     double useful_power_gain = absorbed_radiant_power - thermal_power_loss;
 
-    return useful_power_gain;
+    HeatAndTempInOut heat_and_temp_in_out;
+    heat_and_temp_in_out.Q_gain = absorbed_radiant_power * 1.e-3;
+    heat_and_temp_in_out.Q_loss = thermal_power_loss * 1.e-3;
+    heat_and_temp_in_out.T_in = external_conditions.inlet_fluid_flow.temp;
+    heat_and_temp_in_out.T_out = std::numeric_limits<double>::quiet_NaN();
+    return heat_and_temp_in_out;
 }
 
-const double FlatPlateCollector::T_out(const TimeAndPosition &time_and_position, const ExternalConditions &external_conditions)     // [C]
+const double FlatPlateCollector::HeatFlowsAndOutletTemp(const TimeAndPosition &time_and_position, const ExternalConditions &external_conditions)     // [C]
 {
-    double useful_power_gain = UsefulPowerGain(time_and_position, external_conditions);
+    HeatAndTempInOut heat_and_temp_in_out = HeatGainAndLoss(time_and_position, external_conditions);
+    double useful_power_gain = heat_and_temp_in_out.Q_gain - heat_and_temp_in_out.Q_loss;
 
     double m_dot = external_conditions.inlet_fluid_flow.m_dot;
     double specific_heat = external_conditions.inlet_fluid_flow.specific_heat;
-    double mdotCp_use = m_dot * specific_heat * 1.e3; // mass flow rate (kg/s) * Cp_fluid (kJ/kg.K) * 1000 J/kJ
+    double mdotCp_use = m_dot * specific_heat;              // [kg/s * kJ/kg-K]
     double dT_collector = useful_power_gain / mdotCp_use;
 
     double T_in = external_conditions.inlet_fluid_flow.temp;
@@ -665,7 +671,7 @@ const double FlatPlateArray::EstimatePowerGain(double POA, double T_in, double T
     return this->ncoll() * flat_plate_collector_.EstimatePowerGain(POA, T_in, T_amb);
 }
 
-const double FlatPlateArray::UsefulPowerGain(const tm &timestamp, const ExternalConditions &external_conditions)      // [W]
+const double FlatPlateArray::HeatGainAndLoss(const tm &timestamp, const ExternalConditions &external_conditions)      // [W]
 {
     TimeAndPosition time_and_position;
     time_and_position.collector_location = collector_location_;
@@ -689,8 +695,9 @@ const double FlatPlateArray::UsefulPowerGain(const tm &timestamp, const External
     double series_string_thermal_power_gain = 0.;
     double T_array_out = T_array_in;
     for (std::size_t i = 0; i < array_dimensions_.num_in_series; i++) {
-        series_string_thermal_power_gain += flat_plate_collector_.UsefulPowerGain(time_and_position, external_conditions_to_collector);
-        double T_collector_out = flat_plate_collector_.T_out(time_and_position, external_conditions_to_collector);
+        HeatAndTempInOut heat_and_temp_in_out = flat_plate_collector_.HeatGainAndLoss(time_and_position, external_conditions_to_collector);
+        series_string_thermal_power_gain += heat_and_temp_in_out.Q_gain - heat_and_temp_in_out.Q_loss;      // Q_net
+        double T_collector_out = flat_plate_collector_.HeatFlowsAndOutletTemp(time_and_position, external_conditions_to_collector);
         external_conditions_to_collector.inlet_fluid_flow.temp = T_collector_out;   // to next collector in series
         T_array_out = T_collector_out;
     }
@@ -704,7 +711,7 @@ const double FlatPlateArray::UsefulPowerGain(const tm &timestamp, const External
     return useful_power_gain;
 }
 
-const double FlatPlateArray::T_out(const tm &timestamp, const ExternalConditions &external_conditions)     // [C]
+const double FlatPlateArray::HeatFlowsAndOutletTemp(const tm &timestamp, const ExternalConditions &external_conditions)     // [C]
 {
     TimeAndPosition time_and_position;
     time_and_position.collector_location = collector_location_;
@@ -726,7 +733,7 @@ const double FlatPlateArray::T_out(const tm &timestamp, const ExternalConditions
     external_conditions_to_collector.inlet_fluid_flow.m_dot = m_dot / array_dimensions_.num_in_parallel;
     double T_array_out = T_array_in;
     for (std::size_t i = 0; i < array_dimensions_.num_in_series; i++) {
-        double T_collector_out = flat_plate_collector_.T_out(time_and_position, external_conditions_to_collector);
+        double T_collector_out = flat_plate_collector_.HeatFlowsAndOutletTemp(time_and_position, external_conditions_to_collector);
         external_conditions_to_collector.inlet_fluid_flow.temp = T_collector_out;   // to next collector in series
         T_array_out = T_collector_out;
     }
@@ -828,7 +835,7 @@ int C_MEQ__T_in_fp::operator()(double T_in_fp /*C*/, double* diff_T_in_fp /*C*/)
     external_conditions_->inlet_fluid_flow.m_dot = mdot_fp_;
     external_conditions_->inlet_fluid_flow.specific_heat = flat_plate_htf_->Cp(0.5 * (T_in_fp + T_out_fp_guess) + 273.15);
     external_conditions_->inlet_fluid_flow.temp = T_in_fp;
-    T_out_fp_ = flat_plate_array_->T_out(*timestamp_, *external_conditions_);
+    T_out_fp_ = flat_plate_array_->HeatFlowsAndOutletTemp(*timestamp_, *external_conditions_);
 
     // If flat plates are cooling the htf
     if (T_out_fp_ < T_in_fp) {
