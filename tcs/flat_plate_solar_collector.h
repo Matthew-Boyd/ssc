@@ -289,7 +289,6 @@ public:
     const double MaxAllowedTemp();      // [C]
     const double MaxMassFlow();         // [kg/s]
     const double EstimateHeatGain(double POA /*W/m2*/, double T_in /*C*/, double T_amb /*C*/);                              // [kWt]
-    const double HeatGainAndLoss(const tm &timestamp, const ExternalConditions &external_conditions);                       // [kWt]
     const HeatAndTempInOut HeatFlowsAndOutletTemp(const tm &timestamp, const ExternalConditions &external_conditions);      // [C]
     void SetFluid(int fluid_id);
     HTFProperties* GetFluid();

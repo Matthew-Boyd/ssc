@@ -671,45 +671,6 @@ const double FlatPlateArray::EstimateHeatGain(double POA, double T_in, double T_
     return this->ncoll() * flat_plate_collector_.EstimateHeatGain(POA, T_in, T_amb);
 }
 
-const double FlatPlateArray::HeatGainAndLoss(const tm &timestamp, const ExternalConditions &external_conditions)      // [kWt]
-{
-    TimeAndPosition time_and_position;
-    time_and_position.collector_location = collector_location_;
-    time_and_position.collector_orientation = collector_orientation_;
-    time_and_position.timestamp = timestamp;
-    double T_in = external_conditions.inlet_fluid_flow.temp;
-    double T_amb = external_conditions.weather.ambient_temp;
-    double m_dot = external_conditions.inlet_fluid_flow.m_dot;
-    double specific_heat = external_conditions.inlet_fluid_flow.specific_heat;
-    double specific_heat_capacity = m_dot * specific_heat;
-
-    // Inlet pipe
-    double inlet_pipe_thermal_heat_loss = inlet_pipe_.ThermalHeatLoss(T_in, T_amb);
-    double T_out_inlet_pipe = inlet_pipe_.T_out(T_in, T_amb, specific_heat_capacity);
-    double T_array_in = T_out_inlet_pipe;
-
-    // Collectors
-    ExternalConditions external_conditions_to_collector(external_conditions);
-    external_conditions_to_collector.inlet_fluid_flow.temp = T_array_in;
-    external_conditions_to_collector.inlet_fluid_flow.m_dot = m_dot / array_dimensions_.num_in_parallel;
-    double series_string_thermal_heat_gain = 0.;
-    double T_array_out = T_array_in;
-    for (std::size_t i = 0; i < array_dimensions_.num_in_series; i++) {
-        HeatAndTempInOut heat_and_temp_in_out = flat_plate_collector_.HeatGainAndLoss(time_and_position, external_conditions_to_collector);
-        series_string_thermal_heat_gain += heat_and_temp_in_out.Q_gain - heat_and_temp_in_out.Q_loss;      // Q_net
-        heat_and_temp_in_out = flat_plate_collector_.HeatFlowsAndOutletTemp(time_and_position, external_conditions_to_collector);
-        external_conditions_to_collector.inlet_fluid_flow.temp = heat_and_temp_in_out.T_out;   // to next collector in series
-        T_array_out = heat_and_temp_in_out.T_out;                                              // continually overwritten except for last collector
-    }
-
-    // Outlet pipe
-    double outlet_pipe_thermal_heat_loss = outlet_pipe_.ThermalHeatLoss(T_array_out, T_amb);
-
-    double useful_heat_gain = -inlet_pipe_thermal_heat_loss
-        + series_string_thermal_heat_gain * array_dimensions_.num_in_parallel
-        - outlet_pipe_thermal_heat_loss;
-    return useful_heat_gain;
-}
 
 const HeatAndTempInOut FlatPlateArray::HeatFlowsAndOutletTemp(const tm &timestamp, const ExternalConditions &external_conditions)     // [C]
 {
@@ -739,8 +700,8 @@ const HeatAndTempInOut FlatPlateArray::HeatFlowsAndOutletTemp(const tm &timestam
         HeatAndTempInOut heat_and_temp_in_out = flat_plate_collector_.HeatFlowsAndOutletTemp(time_and_position, external_conditions_to_collector);
         external_conditions_to_collector.inlet_fluid_flow.temp = heat_and_temp_in_out.T_out;   // to next collector in series
         T_array_out = heat_and_temp_in_out.T_out;                                              // continually overwritten except for last collector
-        Q_gain_array += heat_and_temp_in_out.Q_gain;
-        Q_loss_array += heat_and_temp_in_out.Q_loss;
+        Q_gain_array += heat_and_temp_in_out.Q_gain * array_dimensions_.num_in_parallel;
+        Q_loss_array += heat_and_temp_in_out.Q_loss * array_dimensions_.num_in_parallel;
     }
 
     // Outlet pipe
