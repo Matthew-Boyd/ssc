@@ -439,7 +439,7 @@ void FlatPlateArray::SetHxDesignProps(const HxDesignProps& hx_design_props) {
     heat_exchanger_.SetHxDesignProps(hx_design_props);
 }
 
-FluidFlows FlatPlateArray::RunWithHx(tm& timestamp, ExternalConditions& external_conditions, double T_out_target /*C*/)
+FluidFlowsAndSystemHeats FlatPlateArray::RunWithHx(tm& timestamp, ExternalConditions& external_conditions, double T_out_target /*C*/)
 {
     double T_in_hx_f = external_conditions.inlet_fluid_flow.temp;
     double mdot_external = external_conditions.inlet_fluid_flow.m_dot;
@@ -453,13 +453,15 @@ FluidFlows FlatPlateArray::RunWithHx(tm& timestamp, ExternalConditions& external
 
     double POA = IncidentIrradiance(timestamp, external_conditions);
     double Q_fp_est = EstimateHeatGain(POA, T_in_fp_expected, external_conditions.weather.ambient_temp);		// [kWt]
-    double T_f_hx_out, mdot_fp, T_out_fp;
+    double T_f_hx_out, mdot_fp, T_out_fp, Q_gain_fp, Q_loss_fp;
 
     if (T_out_target - T_in_hx_f < T_min_rise || Q_fp_est <= 0.) {
         fp_array_is_on = false;
         mdot_fp = 0.;
         T_f_hx_out = T_in_hx_f;
         T_out_fp = external_conditions.weather.ambient_temp;       // just a placeholder, not accurate
+        Q_gain_fp = 0.;
+        Q_loss_fp = 0.;
     }
     else {
         double T_f_hx_avg_est = 0.5 * (T_in_hx_f + T_out_target);
@@ -490,12 +492,16 @@ FluidFlows FlatPlateArray::RunWithHx(tm& timestamp, ExternalConditions& external
         if (solver_code == C_monotonic_eq_solver::CONVERGED) {
             T_f_hx_out = c_eq.T_f_hx_out_;      // out of HX on the system side, opposite flat plate array
             T_out_fp = c_eq.T_out_fp_;          // out of flat plate array into the HX on the subsystem side
+            Q_gain_fp = c_eq.Q_gain_fp_;
+            Q_loss_fp = c_eq.Q_loss_fp_;
         }
         else {
             fp_array_is_on = false;
             mdot_fp = 0.;
             T_f_hx_out = T_in_hx_f;
             T_out_fp = external_conditions.weather.ambient_temp;       // just a placeholder, not accurate
+            Q_gain_fp = 0.;
+            Q_loss_fp = 0.;
 
             if (solver_code > C_monotonic_eq_solver::CONVERGED && fabs(tol_solved) <= 0.1) {
                 //mpc_csp_solver->error_msg = util::format("At time = %lg the C_MEQ__mdot_fp -> C_MEQ__T_in_fp iteration "
@@ -526,17 +532,22 @@ FluidFlows FlatPlateArray::RunWithHx(tm& timestamp, ExternalConditions& external
     if (!fp_array_is_on) {
         T_f_hx_out = T_in_hx_f;         // bypassing HX and flat plate array
         mdot_fp = 0.;
+        Q_gain_fp = 0.;
+        Q_loss_fp = 0.;
     }
 
-    FluidFlows fluid_flows;
-    fluid_flows.subsystem_side.fluid = *GetFluid();
-    fluid_flows.subsystem_side.temp = T_out_fp;
-    fluid_flows.subsystem_side.m_dot = mdot_fp;
-    fluid_flows.system_side.fluid = external_conditions.inlet_fluid_flow.fluid;
-    fluid_flows.system_side.temp = T_f_hx_out;
-    fluid_flows.system_side.m_dot = external_conditions.inlet_fluid_flow.m_dot;
+    FluidFlowsAndSystemHeats fluid_flows_and_system_heats;
 
-    return fluid_flows;
+    fluid_flows_and_system_heats.fluid_flows.subsystem_side.fluid = *GetFluid();
+    fluid_flows_and_system_heats.fluid_flows.subsystem_side.temp = T_out_fp;
+    fluid_flows_and_system_heats.fluid_flows.subsystem_side.m_dot = mdot_fp;
+    fluid_flows_and_system_heats.fluid_flows.system_side.fluid = external_conditions.inlet_fluid_flow.fluid;
+    fluid_flows_and_system_heats.fluid_flows.system_side.temp = T_f_hx_out;
+    fluid_flows_and_system_heats.fluid_flows.system_side.m_dot = external_conditions.inlet_fluid_flow.m_dot;
+    fluid_flows_and_system_heats.Q_gain_subsystem = Q_gain_fp;
+    fluid_flows_and_system_heats.Q_loss_subsystem = Q_loss_fp;
+
+    return fluid_flows_and_system_heats;
 }
 
 FluidFlow FlatPlateArray::RunSimplifiedWithHx(tm& timestamp, ExternalConditions& external_conditions)
@@ -811,6 +822,8 @@ int C_MEQ__T_in_fp::operator()(double T_in_fp /*C*/, double* diff_T_in_fp /*C*/)
     external_conditions_->inlet_fluid_flow.temp = T_in_fp;
     HeatAndTempInOut heat_and_temp_in_out = flat_plate_array_->HeatFlowsAndOutletTemp(*timestamp_, *external_conditions_);
     T_out_fp_ = heat_and_temp_in_out.T_out;
+    Q_gain_fp_ = heat_and_temp_in_out.Q_gain;
+    Q_loss_fp_ = heat_and_temp_in_out.Q_loss;
 
     // If flat plates are cooling the htf
     if (T_out_fp_ < T_in_fp) {

@@ -157,6 +157,19 @@ struct HeatAndTempInOut
     }
 };
 
+struct FluidFlowsAndSystemHeats
+{
+    FluidFlows fluid_flows;
+    double Q_gain_subsystem;       // [kWt]
+    double Q_loss_subsystem;       // [kWt]
+
+    FluidFlowsAndSystemHeats() {
+        fluid_flows = FluidFlows();
+        Q_gain_subsystem = std::numeric_limits<double>::quiet_NaN();
+        Q_loss_subsystem = std::numeric_limits<double>::quiet_NaN();
+    }
+};
+
 struct ExternalConditions
 {
     Weather weather;
@@ -274,7 +287,7 @@ public:
         const CollectorOrientation &collector_orientation, const ArrayDimensions &array_dimensions,
         const Pipe &inlet_pipe, const Pipe &outlet_pipe);
     void SetHxDesignProps(const HxDesignProps &hx_design_props);
-    FluidFlows RunWithHx(tm& timestamp, ExternalConditions& external_conditions, double T_out_target);
+    FluidFlowsAndSystemHeats RunWithHx(tm& timestamp, ExternalConditions& external_conditions, double T_out_target);
     FluidFlow RunSimplifiedWithHx(tm& timestamp, ExternalConditions& external_conditions);
     const int ncoll();
     const double area_total();                             // [m2]
@@ -402,6 +415,8 @@ public:
     double q_dot_hx_ = std::numeric_limits<double>::quiet_NaN();
     double dT_hot_ = std::numeric_limits<double>::quiet_NaN();
     double dT_cold_ = std::numeric_limits<double>::quiet_NaN();
+    double Q_gain_fp_ = std::numeric_limits<double>::quiet_NaN();
+    double Q_loss_fp_ = std::numeric_limits<double>::quiet_NaN();
     virtual int operator()(double T_in_fp /*C*/, double* diff_T_in_fp /*C*/);
 
 private:
